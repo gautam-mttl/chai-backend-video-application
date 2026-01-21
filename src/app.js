@@ -17,4 +17,12 @@ app.use(express.static('public'));      //to serve static files from public fold
 app.use(cookieParser());      //server can read n remove cookies of the user's browser
 
 
+//routes import
+import userRouter from './routes/user.routes.js';              //we can give any name to the imported router only if export is default
+
+
+//routes declaration
+app.use("/api/v1/users", userRouter); 
+
+//http://localhost:8000/api/v1/users/register
 export { app };
