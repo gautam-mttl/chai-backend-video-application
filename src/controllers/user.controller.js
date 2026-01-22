@@ -1,8 +1,11 @@
- import { asyncHandler } from "../utils/asyncHandler.js";
- import {ApiError} from "../utils/ApiError.js";
- import { User } from "../models/user.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import {ApiError} from "../utils/ApiError.js"
+import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken"
+import mongoose from "mongoose";
+
 
  const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
@@ -16,7 +19,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     // return response
 
     const {fullName, email, username, password}= req.body;                         //form ya json se data .body me aata h, but url se data ke liye 
-    console.log("email: ", email);
+    console.log(req.body);                                 //JUST TO STUDY the incoming request body  
 
     
     if (
@@ -25,7 +28,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
         throw new ApiError(400, "All fields are required")
     }
 
-    const existedUser = User.findOne({                                  //find first entry that matches the criteria in user Schema
+    const existedUser = await User.findOne({                                  //find first entry that matches the criteria in user Schema
         $or: [{ username },{ email }]                                   //dollar sign indicate krte h ki mongodb ka operator use kr rhe h
     
     })
@@ -33,10 +36,17 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     if (existedUser){
         throw new ApiError(409, "User already exists with this username or email");
     }
+    //console.log(req.files);
 
     // ? mtlb optionally, acess ho skta ya nhi bhi
+    console.log(req.files);                                                     //JUST TO STUDY the incoming request files
     const avatarLocalPath = req.files?.avatar[0]?.path                          //.files ka access multer deta, jo middleware routes m use kiya tha or uploading image, that adds data to the request
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    //const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
 
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
@@ -73,4 +83,4 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 })
 
- export { registerUser };
+export { registerUser };

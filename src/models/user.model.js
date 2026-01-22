@@ -5,32 +5,32 @@ import bcrypt from "bcrypt"                                     //bcrpyt helps t
 const userSchema = new Schema(
     {
         username: {
-            type: String, 
-            required: true, 
-            unique: true, 
-            lowercase: true, 
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
             trim: true, 
             index: true
         },
         email: {
-            type: String, 
-            required: true, 
-            unique: true, 
-            lowercase: true, 
-            trim: true
+            type: String,
+            required: true,
+            unique: true,
+            lowecase: true,
+            trim: true, 
         },
         fullName: {
-            type: String, 
-            required: true, 
+            type: String,
+            required: true,
             trim: true, 
             index: true
         },
         avatar: {
-            type: String, //cloudinary URL
+            type: String, // cloudinary url
             required: true,
         },
         coverImage: {
-            type: String, //cloudinary URL
+            type: String, // cloudinary url
         },
         watchHistory: [
             {
@@ -43,27 +43,31 @@ const userSchema = new Schema(
             required: [true, 'Password is required']
         },
         refreshToken: {
-            type: String,
-
+            type: String
         }
-    },
-    {timestamps: true}
-);
 
-userSchema.pre("save", async function(next) {                           //mongoose middleware hooks used to perform soemthing just before a function is execute (here before saving user data to database)
-    if(!this.isModified("password")) {                                  //if password is not modified, return next
-        return next()
+    },
+    {
+        timestamps: true
     }
+)
+
+
+//Latestmongoose pre hooks are now designed to run one by one without any next flag.So we dont need to call next() here
+userSchema.pre("save", async function() {                           //mongoose middleware hooks used to perform soemthing just before a function is execute (here before saving user data to database)
+    if(!this.isModified("password")) {                                  //if password is not modified, return next
+        return;
+    }                                                                   
     this.password = await bcrypt.hash(this.password, 10);               //10 is salt rounds, higher the rounds more secure the hash but takes more time to generate hash
-    next();
-});                                                                     
+});                                                                               
+
 
 //we are adding another property/object to userSchema and object can be function,array anything
-userSchema.methods.isPasswordCorrect = async function(password){                      
+userSchema.methods.isPasswordCorrect = async function(password){
     return await bcrypt.compare(password, this.password)
 }
 
-userSchema.methods.generateAccessToken = function() {
+userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
         {                                                               //PAYLOAD: all the information given   
             _id: this._id,
