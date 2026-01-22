@@ -5,7 +5,7 @@ import connectDB from "./db/index.js";      //connection code is written in sepa
 import { app } from "./app.js";
 
 dotenv.config({
-    path: "./env"          //root directory mei env file hai isliye ./env 
+    path: "./.env"          //root directory mei env file hai isliye ./env 
 });
 
 
@@ -13,11 +13,6 @@ dotenv.config({
 //once database is connected then only server should start listening
 connectDB()
 .then(() => {
-    // app.on("error", (error) => {
-    //         console.log("ERRR: ", error);
-    //         throw error
-    //     })
-
     app.listen(process.env.PORT || 8000, () => {    
         console.log(` Server is running at port : ${process.env.PORT} `);
     })
