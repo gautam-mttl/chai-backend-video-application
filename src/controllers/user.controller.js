@@ -7,7 +7,24 @@ import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
 
 
- const registerUser = asyncHandler(async (req, res) => {
+const generateAccessAndRefereshTokens = async(userId) =>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })                                      //save is mongoDB method, also when we save then jo required fields woh bhi check hote hai ki if value is given or not so to avoid this Validate ko false krdo                                      
+
+        return {accessToken, refreshToken}
+
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+    }
+}
+
+const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
     // validations - not empty
     // check if user already exists: from username, email
@@ -83,4 +100,96 @@ import mongoose from "mongoose";
 
 })
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) =>{
+    // req body se-> data we'll take
+    // username or email
+    //find the user in database
+    //password check
+    //access and referesh token (generate krke-> already in user.model) user ko send krna
+    //send the tokens in cookies
+
+    const {email, username, password} = req.body
+    console.log(req.body)
+
+    if (!username && !email) {
+        throw new ApiError(400, "username or email is required")
+    }
+
+    // Here is an alternative of above code based on logic discussed in video:
+    // if (!(username || email)) {
+    //     throw new ApiError(400, "username or email is required")
+        
+    // }
+
+    const user = await User.findOne({                                       //db in another continent so takes time so await
+        $or: [{username}, {email}]                                          //mongoDB ke operator can be accessed using $
+    })                                                                      //query from mongoDB database to find a user with given email or username
+
+    if (!user) {
+        throw new ApiError(404, "User does not exist")
+    }
+
+    //IMPORTANT                                                                                             //User mongoDb ka mongoose ka object, so mongoose ke through jo methods available h woh milenge | user mei our own created methods are available, user is-> jo database se wapis liya hai, ek instance liya hai
+    const isPasswordValid = await user.isPasswordCorrect(password)                                           //we made method for user isPassCorr in user.model
+
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Invalid user credentials")
+    }
+
+    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")                        //firse user (new ref)isliye liya hai, kyuki the ref of user we have doesn't have the inserted value of refresh token
+
+    const options = {                                       //cookie ke options
+        httpOnly: true,                                     
+        secure: true                                        //can only be changes from server
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options) 
+    .json(
+        new ApiResponse(
+            200, 
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            "User logged In Successfully"
+        )
+    )
+
+})
+
+const logoutUser = asyncHandler(async(req, res) => {
+    //clear access and refresh tokens 
+    //clear cookies
+    await User.findByIdAndUpdate(
+        //in routes logout user run hone se phele auth middleware run hoga, from which we get access to req.user 
+        req.user._id,
+        {
+            $set: {                                                                 //mongoDb ka operator hai set
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true                                       //return mei jo response milega that will have the new value for refreshtoken
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)                            //database se remove hogya, so user ke browser se bhi remove krdo
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out"))
+})
+export { 
+    registerUser,
+    loginUser,
+    logoutUser
+ };
