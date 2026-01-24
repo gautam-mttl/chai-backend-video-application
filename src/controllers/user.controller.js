@@ -1,11 +1,14 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {ApiError} from "../utils/ApiError.js"
-import {User} from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {ApiError} from "../utils/ApiError.js";
+import {User} from "../models/user.model.js";
+import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
-import mongoose from "mongoose";
 
+const CookieOptions = {
+  httpOnly: true,                                   
+  secure: true,                                     //can only be changed from server
+};
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
@@ -22,7 +25,8 @@ const generateAccessAndRefereshTokens = async(userId) =>{
     } catch (error) {
         throw new ApiError(500, "Something went wrong while generating referesh and access token")
     }
-}
+};
+
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
@@ -36,6 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // return response
 
     const {fullName, email, username, password}= req.body;                         //form ya json se data .body me aata h, but url se data ke liye 
+
     console.log(req.body);                                 //JUST TO STUDY the incoming request body  
 
     
@@ -45,19 +50,19 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
-    const existedUser = await User.findOne({                                  //find first entry that matches the criteria in user Schema
+    const existingUser = await User.findOne({                                  //find first entry that matches the criteria in user Schema
         $or: [{ username },{ email }]                                   //dollar sign indicate krte h ki mongodb ka operator use kr rhe h
     
     })
 
-    if (existedUser){
+    if (existingUser){
         throw new ApiError(409, "User already exists with this username or email");
     }
     //console.log(req.files);
 
     // ? mtlb optionally, acess ho skta ya nhi bhi
     console.log(req.files);                                                     //JUST TO STUDY the incoming request files
-    const avatarLocalPath = req.files?.avatar[0]?.path                          //.files ka access multer deta, jo middleware routes m use kiya tha or uploading image, that adds data to the request
+    const avatarLocalPath = req.files?.avatar[0]?.path;                        //.files ka access multer deta, jo middleware routes m use kiya tha or uploading image, that adds data to the request
     //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
     let coverImageLocalPath;
@@ -94,11 +99,11 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     return res.status(201).json(
-        new ApiResponse(200, createdUser, "User registered Successfully")                       //Json mei object behjte hai, so ApiResponse naam ka ek object bna ke bhej rhe hain, and ApiRepsonse utils m defined h
+        new ApiResponse(200, createdUser, "User registered Successfully lol")                       //Json mei object behjte hai, so ApiResponse naam ka ek object bna ke bhej rhe hain, and ApiRepsonse utils m defined h
     )
 
 
-})
+});
 
 const loginUser = asyncHandler(async (req, res) =>{
     // req body se-> data we'll take
@@ -115,14 +120,12 @@ const loginUser = asyncHandler(async (req, res) =>{
         throw new ApiError(400, "username or email is required")
     }
 
-    // Here is an alternative of above code based on logic discussed in video:
-    // if (!(username || email)) {
-    //     throw new ApiError(400, "username or email is required")
-        
-    // }
+    if (!password) {
+        throw new ApiError(400, "password is required");
+    }
 
     const user = await User.findOne({                                       //db in another continent so takes time so await
-        $or: [{username}, {email}]                                          //mongoDB ke operator can be accessed using $
+        $or: [{email}, {username}]                                          //mongoDB ke operator can be accessed using $
     })                                                                      //query from mongoDB database to find a user with given email or username
 
     if (!user) {
@@ -136,30 +139,26 @@ const loginUser = asyncHandler(async (req, res) =>{
         throw new ApiError(401, "Invalid user credentials")
     }
 
-    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+    const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")                        //firse user (new ref)isliye liya hai, kyuki the ref of user we have doesn't have the inserted value of refresh token
 
-    const options = {                                       //cookie ke options
-        httpOnly: true,                                     
-        secure: true                                        //can only be changes from server
-    }
 
     return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options) 
+    .cookie("accessToken", accessToken, CookieOptionsoptions)
+    .cookie("refreshToken", refreshToken, CookieOptionsoptions) 
     .json(
         new ApiResponse(
             200, 
             {
                 user: loggedInUser, accessToken, refreshToken
             },
-            "User logged In Successfully"
+            "User logged In Successfully!!"
         )
     )
 
-})
+});
 
 const logoutUser = asyncHandler(async(req, res) => {
     //clear access and refresh tokens 
@@ -177,19 +176,57 @@ const logoutUser = asyncHandler(async(req, res) => {
         }
     )
 
-    const options = {
-        httpOnly: true,
-        secure: true
-    }
-
     return res
     .status(200)
-    .clearCookie("accessToken", options)                            //database se remove hogya, so user ke browser se bhi remove krdo
-    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", CookieOptions)                            //database se remove hogya, so user ke browser se bhi remove krdo
+    .clearCookie("refreshToken", CookieOptions)
     .json(new ApiResponse(200, {}, "User logged Out"))
+});
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if (incomingRefreshToken) {
+        throw new ApiError(401, "unauthorized request")
+    }
+
+    try {
+        const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+    
+        const user = await User.findById(decodedToken?._id)
+    
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token")
+        }
+    
+        if (incomingRefreshToken !== user?.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used")    
+        }
+        //if the refreshtoken that is incoming(front-end se ek  request ayegi) and the one saved in database are same, we will again generate new access and refresh tokens
+        
+        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+    
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, CookieOptions)
+        .cookie("refreshToken", newRefreshToken, CookieOptions)
+        .json(
+            new ApiResponse(
+                200, 
+                {accessToken, refreshToken: newRefreshToken},
+                "Access token refreshed"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, error?.message || "Invalid refresh token")
+    }
+
 })
+
+
 export { 
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshAccessToken
  };

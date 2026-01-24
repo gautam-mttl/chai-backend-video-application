@@ -20,7 +20,7 @@ export const verifyJWT = asyncHandler(async(req, _, next) => {                  
         const user = await User.findById(decodedToken?._id).select("-password -refreshToken")                       //when jwt token we generated in user model, we gave data like _id, email, username to it
     
         if (!user) {
-            // NEXT_VIDEO: discuss about frontend
+            //
             throw new ApiError(401, "Invalid Access Token")
         }
     
