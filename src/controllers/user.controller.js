@@ -61,13 +61,13 @@ const registerUser = asyncHandler(async (req, res) => {
     //console.log(req.files);
 
     // ? mtlb optionally, acess ho skta ya nhi bhi
-    console.log(req.files);                                                     //JUST TO STUDY the incoming request files
+    console.log(req.files);                                                     //JUST TO STUDY the incoming request files, here 2 files are uploded together, later on in the controller whhile updating only 1 file will be uploaded so directly path we can take
     const avatarLocalPath = req.files?.avatar[0]?.path;                        //.files ka access multer deta, jo middleware routes m use kiya tha or uploading image, that adds data to the request
     //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        coverImageLocalPath = req.files.coverImage[0].path;
+        coverImageLocalPath = req.files.coverImage[0].path;                                     //idhr optionally nahi kyuki we have confirmed that array mila hai
     }
 
     if (!avatarLocalPath) {
@@ -223,15 +223,126 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 })
 
+const changeCurrentPassword = asyncHandler(async(req, res) => {                                     //we need not to worry about if the user is logged in, or cookies over here, as when we will make the route, there we will added the verifyJWT middleware(Auth) to check that
+    const {oldPassword, newPassword} = req.body
+
+    
+
+    const user = await User.findById(req.user?._id)                                                 //auth middleware jo route m use krnege that will give us req.user
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)                             //we made a method in user.model isPasswordCorrect, returns true/false
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid old password")
+    }
+
+    user.password = newPassword
+    await user.save({validateBeforeSave: false})                                                    //pre hook is defined in user.model that runs before the save operation
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"))
+})
+
+
+const getCurrentUser = asyncHandler(async(req, res) => {                                            //the auth middleware will be used in route, which gives us req.user
+    return res          
+    .status(200)
+    .json(200, req.user, "current user fetched successfully")
+})
+
+const updateAccountDetails = asyncHandler(async(req, res) => {                                      //the auth middleware will be used in route, which gives us req.user      
+    const {fullName, email} = req.body
+
+    if (!fullName || !email) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    const user = User.findByIdAndUpdate(req.user?._id ,
+        {
+            $set: {
+                fullName,                                   //fullname: fullName is also correct, but in ES6 single fullName is considered as same
+                email: email                                //sirf email likhte then also same/correct
+            }
+        },
+        {new: true}                                         //if new is true then update hone ke baad jo info hai woh return hogi
+
+    ).select("-password")                                    //don't want password field in the user instance that we get from querying the database
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully"))           
+});
+
+const updateUserAvatar = asyncHandler(async(req, res) => {                                          //2 middleware use krnege in routing, first multer then auth wala to check the logged in user
+    const avatarLocalPath = req.file?.path                                                          //req.file milega multer middleware ke through
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is missing")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)                                        //uploadOnCloudinary returns a response from cloudinary which is object, which has method of url, check in utils
+
+    if (!avatar.url) {
+        throw new ApiError(400, "Error while uploading on avatar")
+        
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                avatar: avatar.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Avatar image updated successfully")
+    )
+})
+
+const updateUserCoverImage = asyncHandler(async(req, res) => {
+    const coverImageLocalPath = req.file?.path
+
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Cover image file is missing")
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if (!coverImage.url) {
+        throw new ApiError(400, "Error while uploading on avatar")
+        
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                coverImage: coverImage.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Cover image updated successfully")
+    )
+})
 
 export { 
     registerUser,
     loginUser,
     logoutUser,
     refreshAccessToken,
-    // changeCurrentPassword,
-    // getCurrentUser,
-    // updateAccountDetails,
-    // updateUserAvatar,
-    // updateUserCoverImage
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
  };
