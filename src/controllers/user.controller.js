@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js";
 import {User} from "../models/user.model.js";
-import {uploadOnCloudinary} from "../utils/cloudinary.js";
+import {uploadOnCloudinary, deleteFromCloudinary} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 
@@ -81,10 +81,13 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is required")
     }
 
+    //create new user
     const user = await User.create({
         fullName,
         avatar: avatar.url,
-        coverImage: coverImage?.url || "",                      //cover image optionally thi so path bhi shyd hi milega, so otherwise empty value bhejo database mei
+        avatar_publicId: avatar.public_id,
+        coverImage: coverImage?.url || "",                                          //cover image optionally thi so path bhi shyd hi milega, so otherwise empty value bhejo database mei
+        coverImage_publicId: coverImage?.public_id || "",
         email, 
         password,
         username: username.toLowerCase()
@@ -247,7 +250,7 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {                 
 const getCurrentUser = asyncHandler(async(req, res) => {                                            //the auth middleware will be used in route, which gives us req.user
     return res          
     .status(200)
-    .json(200, req.user, "current user fetched successfully")
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
 })
 
 const updateAccountDetails = asyncHandler(async(req, res) => {                                      //the auth middleware will be used in route, which gives us req.user      
@@ -257,7 +260,13 @@ const updateAccountDetails = asyncHandler(async(req, res) => {                  
         throw new ApiError(400, "All fields are required")
     }
 
-    const user = User.findByIdAndUpdate(req.user?._id ,
+    // const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });
+
+    // if (existingUser) {
+    //     throw new ApiError(409, "User with this email already exists")
+    // }
+
+    const user = await User.findByIdAndUpdate(req.user?._id ,
         {
             $set: {
                 fullName,                                   //fullname: fullName is also correct, but in ES6 single fullName is considered as same
@@ -287,11 +296,15 @@ const updateUserAvatar = asyncHandler(async(req, res) => {                      
         
     }
 
+    const avatarPublicId = req.user?.avatar_publicId
+    await deleteFromCloudinary(avatarPublicId)
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set:{
-                avatar: avatar.url
+                avatar: avatar.url,
+                avatar_publicId: avatar.public_id
             }
         },
         {new: true}
@@ -318,11 +331,17 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
         
     }
 
+    const coverImagePublicId = req.user?.coverImage_publicId
+    if (req.user && req.user.coverImage !== '') {
+        await deleteFromCloudinary(coverImagePublicId)
+    }
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set:{
-                coverImage: coverImage.url
+                coverImage: coverImage.url,
+                coverImage_publicId: coverImage.public_id
             }
         },
         {new: true}
@@ -335,6 +354,81 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
     )
 })
 
+const getUserChannelProfile = asyncHandler(async(req, res) => {                                     //the route for going on a channel will have username like youtube/chaiaurcode
+    console.log(req.params)                                                                         //req.params (express.js) is an object containing URL route parameter(key-value pairs)
+    const {username} = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "username is missing")
+    }
+
+    const channel = await User.aggregate([                                                          //aggregate takes an array, inside array each object is a pipeline stage 
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {                                                                                           //lookup se we perform left join, so jo criteria matching docs hai their data is added as new field in(jo match se ek user a doc mila hai)
+            $lookup: {                                                                              //lookup ke bhi fixed param hote hai from(which doc), local field , foreign field, as(result ko store as)
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {                                      
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {                                                                           //condition, iske 3 param hote hai if, then, else
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},                         //jo doc aaya subscribers usmei user hai ya nhi, we will return true ya false value to front-end dev
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {                                                                                 //what all to project on the channel
+                fullName: 1,                                                                            //jo krna hai display uska flag 1
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+
+            }
+        }
+    ])
+
+    console.log(channel)                                                                            //LOG TO STUDY: Aggregation pipeline returns an array, our match returns only 1 value, so the returned array also will have 1 value
+    if (!channel?.length) {
+        throw new ApiError(404, "channel does not exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel fetched successfully")
+    )
+})
+
+
 export { 
     registerUser,
     loginUser,
@@ -344,5 +438,6 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile
  };
