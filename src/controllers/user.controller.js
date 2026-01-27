@@ -426,19 +426,22 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {                 
     .status(200)
     .json(
         new ApiResponse(200, channel[0], "User channel fetched successfully")
+        //new ApiResponse(200, channel[0].subscriberCount, "no. of subs fetched successfully")
+        //new ApiResponse(200, channel[0].channelsSubscribedToCount, "subscribed to count fetched successfully")
+
     )
 })
 
 const getWatchHistory = asyncHandler(async(req, res) => {
-    const user = await User.aggregate([
+    const user = await User.aggregate([                                                             //aggregation pipeline retruns an array, with objects as elements, so here the first element(the    matched user) will contain all values
         {
-            $match: {
-                _id: new mongoose.Types.ObjectId(req.user._id)
+            $match: {                                                                               
+                _id: new mongoose.Types.ObjectId(req.user._id)                                      //in aggregation pipelines ,code goes directly and mongoose kaam nhi krta, _id we get is string and it goes directly and doesn't match the mongoDB id, so we have to separately make mongoose ki object id  (otherwise mongoose behind the scene convert krdeta hai mongoDB ki objectId mei)
             }
         },
         {
-            $lookup: {
-                from: "videos",
+            $lookup: {                                                                              
+                from: "videos",                                                                     //Schema name as saved in mongoDB(lowercase and plural of the name in model)
                 localField: "watchHistory",
                 foreignField: "_id",
                 as: "watchHistory",
@@ -451,7 +454,7 @@ const getWatchHistory = asyncHandler(async(req, res) => {
                             as: "owner",
                             pipeline: [
                                 {
-                                    $project: {
+                                    $project: {                                                     //only these value will go in owner field as an array, and these value will be first object in the array
                                         fullName: 1,
                                         username: 1,
                                         avatar: 1
@@ -462,8 +465,8 @@ const getWatchHistory = asyncHandler(async(req, res) => {
                     },
                     {
                         $addFields:{
-                            owner:{
-                                $first: "$owner"
+                            owner:{                                                                 //we use the same name so that owner gets overwritten, and we had an array in owner with first element(object) containing 3fields from user, those 3 will be directly written in owner field
+                                $first: "$owner"                                                    //first value in the owner field($ kyuki oner field mei se nikalni hai values)
                             }
                         }
                     }
@@ -474,13 +477,7 @@ const getWatchHistory = asyncHandler(async(req, res) => {
 
     return res
     .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            user[0].watchHistory,
-            "Watch history fetched successfully"
-        )
-    )
+    .json( new ApiResponse( 200, user[0].watchHistory, "Watch history fetched successfully" ))
 })
 
 export { 
