@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import {errorHandler} from './middlewares/error.middleware.js'
  
 const app = express();
 
@@ -23,6 +24,8 @@ import userRouter from './routes/user.routes.js';              //we can give any
 
 //routes declaration
 app.use("/api/v1/users", userRouter); 
+
+app.use(errorHandler);                                         //global error handler/middleware
 
 //http://localhost:8000/api/v1/users/register
 export { app };

@@ -1,11 +1,23 @@
 const asyncHandler = (requestHandler) => {
     return (req, res, next) => {
-        Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
-    }
+        Promise.resolve(requestHandler(req, res, next))
+        .catch((err) => next(err))                      //next(err) passes the error to next middleware running, so we need a global error middleware
+    }                                                   //where ever we will throw error the catch block here will catch it and pass to next
 }
 
 
 export { asyncHandler }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -59,7 +59,7 @@ const registerUser = asyncHandler(async (req, res) => {
     if (existingUser){
         throw new ApiError(409, "User already exists with this username or email");
     }
-    //console.log(req.files);
+    
 
     // ? mtlb optionally, acess ho skta ya nhi bhi
     console.log(req.files);                                                     //JUST TO STUDY the incoming request files, here 2 files are uploded together, later on in the controller whhile updating only 1 file will be uploaded so directly path we can take
@@ -118,7 +118,7 @@ const loginUser = asyncHandler(async (req, res) =>{
     //send the tokens in cookies
 
     const {email, username, password} = req.body
-    console.log(req.body)
+    console.log("Request Body is: ",req.body)
 
     if (!username && !email) {
         throw new ApiError(400, "username or email is required")
@@ -150,8 +150,8 @@ const loginUser = asyncHandler(async (req, res) =>{
 
     return res
     .status(200)
-    .cookie("accessToken", accessToken, CookieOptionsoptions)
-    .cookie("refreshToken", refreshToken, CookieOptionsoptions) 
+    .cookie("accessToken", accessToken, CookieOptions)
+    .cookie("refreshToken", refreshToken, CookieOptions) 
     .json(
         new ApiResponse(
             200, 
@@ -171,8 +171,8 @@ const logoutUser = asyncHandler(async(req, res) => {
         //in routes logout user run hone se phele auth middleware run hoga, from which we get access to req.user 
         req.user._id,
         {
-            $set: {                                                                 //mongoDb ka operator hai set
-                refreshToken: undefined
+            $unset: {                                                                 //mongoDb ka operator hai set and unset
+                refreshToken: 1                                                       //this removes the field from document
             }
         },
         {
@@ -188,7 +188,7 @@ const logoutUser = asyncHandler(async(req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    const incomingRefreshToken = req?.cookies?.refreshToken || req?.body?.refreshToken
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "unauthorized request")
@@ -208,7 +208,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         }
         //if the refreshtoken that is incoming(front-end se ek  request ayegi) and the one saved in database are same, we will again generate new access and refresh tokens
         
-        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+        const {accessToken, refreshToken: newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
     
         return res
         .status(200)
@@ -217,7 +217,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200, 
-                {accessToken, refreshToken: newRefreshToken},
+                {accessToken, newRefreshToken},
                 "Access token refreshed"
             )
         )
@@ -236,7 +236,7 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {                 
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)                             //we made a method in user.model isPasswordCorrect, returns true/false
 
     if (!isPasswordCorrect) {
-        throw new ApiError(400, "Invalid old password")
+        throw new ApiError(401, "Invalid old password")
     }
 
     user.password = newPassword
@@ -256,16 +256,17 @@ const getCurrentUser = asyncHandler(async(req, res) => {                        
 
 const updateAccountDetails = asyncHandler(async(req, res) => {                                      //the auth middleware will be used in route, which gives us req.user      
     const {fullName, email} = req.body
+    console.log(req.body)
 
-    if (!fullName || !email) {
+    if (!fullName || !email) {                                                                      //if i wanted either one, then &&
         throw new ApiError(400, "All fields are required")
     }
 
-    // const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });
+    const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });                 //Find a user whose email is this email AND whose _id is NOT the current user’s id
 
-    // if (existingUser) {
-    //     throw new ApiError(409, "User with this email already exists")
-    // }
+    if (existingUser) {
+        throw new ApiError(409, "User with this email already exists")
+    }
 
     const user = await User.findByIdAndUpdate(req.user?._id ,
         {
@@ -276,7 +277,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {                  
         },
         {new: true}                                         //if new is true then update hone ke baad jo info hai woh return hogi
 
-    ).select("-password")                                    //don't want password field in the user instance that we get from querying the database
+    ).select("-password -refreshToken")                                    //don't want password field in the user instance that we get from querying the database
 
     return res
     .status(200)
@@ -293,7 +294,7 @@ const updateUserAvatar = asyncHandler(async(req, res) => {                      
     const avatar = await uploadOnCloudinary(avatarLocalPath)                                        //uploadOnCloudinary returns a response from cloudinary which is object, which has method of url, check in utils
 
     if (!avatar.url) {
-        throw new ApiError(400, "Error while uploading on avatar")
+        throw new ApiError(400, "Error while uploading avatar")
         
     }
 
@@ -309,7 +310,7 @@ const updateUserAvatar = asyncHandler(async(req, res) => {                      
             }
         },
         {new: true}
-    ).select("-password")
+    ).select("-password -refreshToken")
 
     return res
     .status(200)
@@ -346,7 +347,7 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
             }
         },
         {new: true}
-    ).select("-password")
+    ).select("-password -refreshToken")
 
     return res
     .status(200)
@@ -417,7 +418,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {                 
         }
     ])
 
-    console.log(channel)                                                                            //LOG TO STUDY: Aggregation pipeline returns an array, our match returns only 1 value, so the returned array also will have 1 value
+    console.log("Channel details: ", channel)                                                                            //LOG TO STUDY: Aggregation pipeline returns an array, our match returns only 1 value, so the returned array also will have 1 value
     if (!channel?.length) {
         throw new ApiError(404, "channel does not exists")
     }
@@ -475,6 +476,7 @@ const getWatchHistory = asyncHandler(async(req, res) => {
         }
     ])
 
+    console.log(user);                                                          //TO STUDY
     return res
     .status(200)
     .json( new ApiResponse( 200, user[0].watchHistory, "Watch history fetched successfully" ))

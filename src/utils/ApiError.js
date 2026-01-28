@@ -1,3 +1,4 @@
+//THIS IS THE FORMAT OF HOW I WANT TO SEND MY ERROR                    //the ApiError gets thrown , async handler catch block catches it and passes to next(err), which send the err to global errorHandler/ middleware
 class ApiError extends Error {
     constructor(
         statusCode,

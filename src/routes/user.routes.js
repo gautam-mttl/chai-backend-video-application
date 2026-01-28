@@ -35,16 +35,16 @@ router.route("/register").post(
 router.route("/login").post(loginUser)
 
 //secured routes
-router.route("/logout").post(verifyJWT,  logoutUser)                                //logoutUser ka controller/method run hone se phele I want middleware (to verify the acessToken) to run
+router.route("/logout").post(verifyJWT,  logoutUser)                                        //logoutUser ka controller/method run hone se phele I want middleware (to verify the acessToken) to run
 router.route("/refresh-token").post(refreshAccessToken)
 router.route("/change-password").post(verifyJWT, changeCurrentPassword)
-router.route("/current-user").get(verifyJWT, getCurrentUser)
-router.route("/update-account").patch(verifyJWT, updateAccountDetails)
+router.route("/current-user").get(verifyJWT, getCurrentUser)                                //want to get
+router.route("/update-account").patch(verifyJWT, updateAccountDetails)                      //.patch, kyuki post m saari details udates hojaygi
 
 router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
-router.route("/cover-image").patch(verifyJWT, upload.single("/coverImage"), updateUserCoverImage)
+router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
 
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile)                           // we are taking the value of username for a channel through params in our controller, so that's the way to write it---> /c(or channel)/:username
 router.route("/history").get(verifyJWT, getWatchHistory)
 
 export default router;
