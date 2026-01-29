@@ -1,6 +1,6 @@
 import mongoose,{Schema} from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";  //helps us to write aggregate queries of mongoDB
-
+//pagination is required as ek saath user ko saari video nhi load krke dete, either load more ya next page par denge
 // const videoSchema = new mongoose.Schema({})  // this is used when we don't import Schema separately
 
 const videoSchema = new Schema(
