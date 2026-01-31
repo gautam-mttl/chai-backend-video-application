@@ -13,9 +13,18 @@ const videoSchema = new Schema(
             type: String, //cloudinary URL
             required: true
         },
+        videoFile_publicId: {
+            type: String,
+            required: true
+        },
+        thumbnail_publicId: {
+            type: String,
+            required: true
+        },
         title: {
             type: String,
             required: true,
+            trim: true
         },
         description: {
             type: String,
@@ -29,13 +38,14 @@ const videoSchema = new Schema(
             type: Number,   
             default: 0
         },
-        isPublised: {
+        isPublished: {
             type: Boolean,
             default: true
         },
         owner: {
             type: Schema.Types.ObjectId,       //mongoose.Schema.Types.ObjectId also works but Schema was imported separately here
-            ref: "User"
+            ref: "User",
+            required: true
         }
     }, 
     {timestamps: true}
