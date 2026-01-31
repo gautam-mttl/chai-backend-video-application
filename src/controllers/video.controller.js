@@ -131,11 +131,14 @@ const publishAVideo = asyncHandler(async (req, res) => {
             isPublished: true,
             owner: req.user._id                                                 //auth middleware in route
         });
-    
+        
+        const user = await User.findById(req.user._id).select("username avatar");
+
         return res
             .status(201)
-            .json(new ApiResponse(201, newVideo, "Video published successfully"))
-    } catch (error) {
+            .json(new ApiResponse(201, {newVideo, channel: user},  "Video published successfully"))
+    } 
+    catch (error) {
         console.log(error)
         throw new ApiError(500, "Something went wrong while publishing the video")
     }
@@ -199,7 +202,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Video not found');
     }
 
-    return res.status(200).json(new ApiResponse(200, video, 'Video found'));
+    return res.status(200).json(new ApiResponse(200, video[0], 'Video found'));
 });
 
 
@@ -239,7 +242,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
     await deleteFromCloudinary(video.thumbnail_publicId)
     await deleteFromCloudinary(video.videoFile_publicId)
 
-    await Video.findByIdAndDelete(videoId);
+    await Video.findByIdAndDelete(video._id);
 
     return res.status(200).json(
     new ApiResponse(200, {}, "Video deleted successfully")
