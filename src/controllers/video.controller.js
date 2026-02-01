@@ -11,8 +11,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
     //TODO: get all videos based on query, sort, pagination
 
-    page = Number(page);
-    limit = Number(limit);
+    const pageNum = Number(page);                                                                                       //the query gives tring, so to convert into number
+    const limitNum = Number(limit);
 
 // Build match stage                                                                          
     //no query, no userId ( /videos)                                                                                    //const matchStage = {}
@@ -20,12 +20,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
         isPublished: true                                                                      
     };
 
-    // if userId ( /videos?userId=abc )-----> in match with isPublished, onwer: userId will also be passed
+    // if userId in req.query ( /videos?userId=abc )-----> in match with isPublished, onwer: userId will also be passed
     if (userId && isValidObjectId(userId)) {
         matchStage.owner = new mongoose.Types.ObjectId(userId);
     }
 
-    // if query ( /videos?query=music )-----> in match with isPublished, the $or will also be passed
+    // if query in req.query ( /videos?query=music )-----> in match with isPublished, the $or will also be passed
     if (query) {
         matchStage.$or = [                                                                                              //from isPublsihed documents, Match documents where ANY ONE of the conditions is true: title matches query or desc matches query
         { title: { $regex: query, $options: "i" } },                                                                    //$regex Used to match strings based on a pattern instead of exact value.
@@ -80,8 +80,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     ]);
 
     const videos = await Video.aggregatePaginate(aggregate, {
-        page,
-        limit
+        page : pageNum,
+        limit : limitNum
     });
 
     return res.status(200).json(
@@ -202,7 +202,12 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Video not found');
     }
 
-    return res.status(200).json(new ApiResponse(200, video[0], 'Video found'));
+    const videoDoc = video[0];
+        if (!videoDoc.isPublished && !videoDoc.channel._id.equals(req.user._id)) {
+        throw new ApiError(403, "Video is private");
+    }
+
+    return res.status(200).json(new ApiResponse(200, videoDoc, 'Video found'));
 });
 
 
@@ -253,14 +258,14 @@ const deleteVideo = asyncHandler(async (req, res) => {
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const video = req.video;                                                            //req.video from middleware videoOwnership, video is instance of Video.findById
 
-    // video.isPublished = !video.isPublished;                                          //in rare case cn cause race condition
-    // await video.save();
+    video.isPublished = !video.isPublished;                                          //in rare case cn cause race condition
+    const publishStatus = await video.save();
 
-    const publishStatus = await Video.findByIdAndUpdate(video._id,
-        { $set: { isPublished: { $not: "$isPublished"}} },                              //$not is atomic 
-        { new: true }
-    );
-    console.log(publishStatus);
+    // const publishStatus = await Video.findByIdAndUpdate(video._id,
+    //     [{ $set: { isPublished: { $not: "$isPublished"}} }],                              //$not is atomic 
+    //     { new: true }
+    // );
+    //console.log(publishStatus);
 
     if (!publishStatus) {
         throw new ApiError(404, "Video not found");
