@@ -284,7 +284,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {                  
     .json(new ApiResponse(200, user, "Account details updated successfully"))           
 });
 
-const updateUserAvatar = asyncHandler(async(req, res) => {                                          //2 middleware use krnege in routing, first multer then auth wala to check the logged in user
+const updateUserAvatar = asyncHandler(async(req, res) => {                                          //2 middleware use krnege in routing, first multer then auth wala to check the logged in userxx
     const avatarLocalPath = req.file?.path                                                          //req.file milega multer middleware ke through
 
     if (!avatarLocalPath) {
@@ -367,7 +367,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {                 
     const channel = await User.aggregate([                                                          //aggregate takes an array, inside array each object is a pipeline stage 
         {
             $match: {
-                username: username?.toLowerCase()
+                username: username?.toLowerCase()                                                   //only one user will match, so only one document will be returned
             }
         },
         {                                                                                           //lookup se we perform left join, so jo criteria matching docs hai their data is added as new field in(jo match se ek user a doc mila hai)
@@ -467,7 +467,7 @@ const getWatchHistory = asyncHandler(async(req, res) => {
                     {
                         $addFields:{
                             owner:{                                                                 //we use the same name so that owner gets overwritten, and we had an array in owner with first element(object) containing 3fields from user, those 3 will be directly written in owner field
-                                $first: "$owner"                                                    //first value in the owner field($ kyuki oner field mei se nikalni hai values)
+                                $first: "$owner"                                                    //First takes first element  from onwer array(has only 1 object)($ kyuki owner field mei se nikalni hai values)
                             }
                         }
                     }
