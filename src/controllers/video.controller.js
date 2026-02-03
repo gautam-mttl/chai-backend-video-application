@@ -1,6 +1,8 @@
 import mongoose, {isValidObjectId} from "mongoose"
 import {Video} from "../models/video.model.js"
 import {User} from "../models/user.model.js"
+import {Comment} from "../models/comment.model.js"
+import { Like } from "../models/like.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
@@ -206,6 +208,11 @@ const getVideoById = asyncHandler(async (req, res) => {
         if (!videoDoc.isPublished && !videoDoc.channel._id.equals(req.user._id)) {
         throw new ApiError(403, "Video is private");
     }
+
+    const totalLikes = await Like.countDocuments({ video: videoId });                       //import Like model
+    const totalComments = await Comment.countDocuments({ video: videoId });                 //import Comment model
+    videoDoc.tottalLikes = totalLikes;
+    videoDoc.totalComments = totalComments;
 
     return res.status(200).json(new ApiResponse(200, videoDoc, 'Video found'));
 });
