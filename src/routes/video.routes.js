@@ -34,9 +34,9 @@ router.route("/")
 router.route("/:videoId")
     .get(getVideoById)
     .delete(verifyVideoOwnership, deleteVideo)
-    .patch(verifyVideoOwnership, upload.single("thumbnail"), updateVideo);
+    .patch(verifyVideoOwnership, upload.single("thumbnail"), updateVideo);                                                 // User edits field → PATCH
 
 router.route("/toggle/publish/:videoId").patch(verifyVideoOwnership, togglePublishStatus);
-
+router.route("/view/:videoId").post(increaseView);                                                                        // System/event increments → POST
 export default router
 
