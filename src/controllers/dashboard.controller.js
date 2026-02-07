@@ -85,7 +85,7 @@ const getChannelVideos = asyncHandler(async (req, res) => {
     const videos = await Video.aggregatePaginate(
         Video.aggregate([
         {
-            $match: { owner: mongoose.Types.ObjectId(req.user._id) }
+            $match: { owner: new mongoose.Types.ObjectId(req.user._id) }
         },
         {
             $project: {
