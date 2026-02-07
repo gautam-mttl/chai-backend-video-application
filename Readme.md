@@ -55,6 +55,19 @@ CLOUDINARY_API_SECRET=
 
 ---
 
+## 🗂 Project Structure
+
+```
+src/
+ ├── routes/
+ ├── controllers/
+ ├── models/
+ ├── middlewares/
+ └── utils/
+```
+
+---
+
 
 ## 📚 Dependencies
 
