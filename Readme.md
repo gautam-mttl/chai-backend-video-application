@@ -24,6 +24,7 @@ The project follows **industry-standard practices** such as **JWT authentication
 
 Significant effort has been invested in building this project, making it a strong **learning resource for backend development**.
 
+
 ---
 
 ## ⚙️ Run Locally
@@ -34,6 +35,7 @@ npm run dev
 ```
 
 ---
+
 
 ## 🔐 Environment Variables
 
@@ -53,6 +55,7 @@ CLOUDINARY_API_SECRET=
 
 ---
 
+
 ## 📚 Dependencies
 
 | Package | Purpose |
@@ -69,6 +72,7 @@ CLOUDINARY_API_SECRET=
 | multer | File uploads |
 | nodemon | Auto server restart |
 | prettier | Code formatting |
+
 
 ---
 
