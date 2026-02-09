@@ -61,7 +61,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
 const toggleTweetLike = asyncHandler(async (req, res) => {
     const {tweetId} = req.params
     //TODO: toggle like on tweet
-    if(!isValidObjectId(videoId)) {
+    if(!isValidObjectId(tweetId)) {
         throw new ApiError(400, "Invalid tweet id")
     }
 
